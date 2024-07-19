@@ -12,4 +12,4 @@ Investigating Mechanical Behaviors of Fan-Out Panel Level Packaging Structures d
 main.txt 主程式碼(模型)     
 result_calculate.txt 翹曲量與脫層分析(適用於斜線裂紋模型)  
 V_shrinkage.txt 體積收縮比用  
-ding_screenshot.txt 截圖用(由黃鼎元提供)  
+screenshot_ding.txt 截圖用(由黃鼎元提供)  
