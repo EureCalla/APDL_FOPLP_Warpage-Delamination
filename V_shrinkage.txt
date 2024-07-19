@@ -1,0 +1,31 @@
+!讀ECM元素體積_20181002(我媽媽生日)
+
+esel,s,mat,,20
+*get,nnn,elem,0,count
+*get,step,active,,set,nset
+
+A=
+*dim,A,array,step,2
+
+*DO,I,10,step,1
+set,i
+vvvt=0
+*get,enum,elem,,num,min
+
+       *do,j,1,nnn,1	
+         *GET,vvv,ELEM,enum,volu
+         vvvt=vvvt+vvv
+         *GET,enum1,ELEM,enum,nxth
+         enum=enum1
+       *enddo
+
+*get,time,active,,set,time	
+ A(I,1,1)=time
+ A(I,2,1)=vvvt
+
+*ENDDO
+alls
+
+set,last
+*mwrite,A,EMCvolum_MATRIX,dat,,,,step,2
+(5E15.5)

@@ -1,4 +1,4 @@
-﻿!熱翹曲分析(無裂紋有PI+mesh1)一2018/2/6
+﻿!熱翹曲分析(有裂紋有PI+mesh6)一2018/10/07
 finish
 /clear
 seltol,1e-8
@@ -10,17 +10,16 @@ seltol,1e-8
 
 length=100
 width=100
-t1=0.7				!玻璃厚度
 t2=150e-3			!Die+EMC厚度
 t3=230e-3-t2		!EMC厚度
 t4=13e-3			!PI厚度
 
-nnn=2				!收斂性分析幾倍
+nnn=1.6				!收斂性分析幾倍
 
 da=0.1/nnn			!裂紋尖端最細size
 LDie=4				!Die寬
 spacing=3			!Die邊緣間距
-dienum=16			!Die陣列單邊數量
+dienum=10			!Die陣列單邊數量
 diegap=((length-2*spacing-(LDie))/(dienum-1))-LDie			!Die間距
 
 cracklayer=1			!脫層層
@@ -370,7 +369,7 @@ csys,100	$wpcsys,,100
 asel,s,loc,z,0	$esla
 mat,1
 type,1
-esize,,crack_da/da
+esize,,(crack_da/da)/0.7*t1
 VEXT,all,,,0,0,t1		!往z方向擠出
 alls
 
@@ -411,7 +410,7 @@ nsel,u,,,crack_n
 nummrg,node
 
 alls
-nsel,u,,,crack_n
+!nsel,u,,,crack_n
 nummrg,node
 
 
@@ -435,26 +434,29 @@ antype,0
 kbc,0
 nropt,full	!為了可以ekill而用的指令
 !neqit,30	!幫助收斂的指令
+ESTIF,1E-12	!把kill後的元素剛度調更軟
+!可用esel,s,live選活著的元素
 
 time,0.01
-nsubst,8,5000,1
+nsubst,7,5000,3
 alls
 esel,u,mat,,1
 esel,u,mat,,18
 ekill,all
 alls
-tunif,350
+tunif,450
 solve
 
-*do,i,1,5,1
-time,(0.1*i)
-nsubst,8,5000,1
-tunif,350-(350-150)/5*i
+*do,i,2,9,1
+time,(0.01*i)
+nsubst,7,5000,3
+tunif,450-(450-150)/8*(i-1)
 solve
 *enddo
 
-time,1
-nsubst,8,5000,1
+time,0.1
+alls
+nsubst,7,5000,3
 esel,s,mat,,19
 esel,a,mat,,20
 ealive,all
@@ -462,61 +464,8 @@ alls
 tunif,150
 solve
 
-*do,i,1,10,1
-time,(1+0.1*i)
-nsubst,8,5000,1
-tunif,150-(150-149.5)/10*i
-solve
-*enddo
-
-
-time,3
-nsubst,8,5000,1
-tunif,148.2
-solve
-
-time,4
-nsubst,8,5000,1
-tunif,147.8
-solve
-
-time,5
-nsubst,8,5000,1
-tunif,140
-solve
-
-time,6
-nsubst,8,5000,1
-tunif,120
-solve
-
-time,7
-nsubst,8,5000,1
-tunif,100
-solve
-
-time,8
-nsubst,8,5000,1
-tunif,80
-solve
-
-time,9
-nsubst,8,5000,1
-tunif,60
-solve
-
-time,9.5
-nsubst,8,5000,1
-tunif,50
-solve
-
-time,10
-nsubst,8,5000,1
-tunif,25
-solve
-
 !考慮自重
-time,11
+time,1
 esel,s,mat,,1
 bfe,all,forc,1,,,bf1
 esel,s,mat,,19
@@ -526,18 +475,164 @@ bfe,all,forc,1,,,bf20
 esel,s,mat,,18
 bfe,all,forc,1,,,bf18
 alls
-nsubst,8,5000,1
+nsubst,7,5000,3
+tunif,150
+solve
+
+
+
+*do,i,1,10,1
+time,(1+0.1*i)
+nsubst,7,5000,3
+tunif,150-(150-149.5)/10*i
+solve
+*enddo
+
+
+time,3
+nsubst,7,5000,3
+tunif,148.2
+solve
+
+time,4
+nsubst,7,5000,3
+tunif,147.8
+solve
+
+time,5
+nsubst,7,5000,3
+tunif,140
+solve
+
+time,6
+nsubst,7,5000,3
+tunif,120
+solve
+
+time,7
+nsubst,7,5000,3
+tunif,100
+solve
+
+time,8
+nsubst,7,5000,3
+tunif,70
+solve
+
+time,9
+nsubst,7,5000,3
+tunif,50
+solve
+
+time,10
+nsubst,7,5000,3
 tunif,25
 solve
+
+!刪除玻璃自重和重訂B.C
+time,11
+nsubst,7,5000,3
+tunif,25
+alls
+nsel,s,loc,z,t1	$nsel,r,loc,x,0	$nsel,r,loc,y,0
+d,all,uz,0
+!nsel,s,loc,z,0	$nsel,r,loc,x,0	$nsel,r,loc,y,0
+!!ddele,all,uz
+!nsel,s,loc,z,0	$d,all,all,0
+alls
+esel,s,mat,,1
+bfe,all,forc,1,,,0
+alls
+solve
+
+!====取玻璃使用學霸式切法====!
+!定義一下三層玻璃的名字
+esel,s,mat,,1
+nsel,s,loc,z,t1
+esln,r
+cm,glass3,elem	!第三層
+esel,s,mat,,1
+esel,r,cent,z,0,t1/2
+cm,glass1,elem  !第一層
+esel,s,mat,,1
+cmsel,u,glass1
+cmsel,u,glass3
+cm,glass2,elem  !第二層
+alls
+*GET,ttt,ACTIVE,,set,time
+
+cut1=50		!長寬切幾段取下玻璃
+cutlay=3	!厚度切幾段取下玻璃
+nsubst,7,5000,3
+*Do,j,1,cut1-3,1
+*do,i,1,cutlay,1
+time,ttt+j+(0.3*i)-0.2
+
+tunif,25
+alls
+esel,s,cent,x,length/2-length/2/cut1*(j),length/2
+esel,r,cent,y,width/2-width/2/cut1*(j),width/2
+esel,r,mat,,1!01
+cmsel,r,glass%i%
+
+ekill,all
+alls
+solve
+*enddo
+*Enddo
+
+ttt=ttt+j
+!time,ttt
+!tunif,25
+!alls
+!esel,s,live
+!esel,r,mat,,1
+!mpchg,101,all
+!alls
+!solve
+!ttt=ttt+1
+xxx=length/2-length/2/cut1*(j)
+yyy=width/2-width/2/cut1*(j)
+
+
+cut2=10		!長寬切幾段取下玻璃
+nsubst,7,5000,3
+*Do,k,1,cut,1
+*do,i,1,cutlay,1
+time,ttt+k+(0.3*i)-0.2
+tunif,25
+alls
+esel,s,cent,x,length/2-length/2/cut2*(k),length/2
+esel,r,cent,y,width/2-width/2/cut2*(k),width/2
+cm,dont,elem
+esel,s,cent,x,length/2-length/2/cut2*(k),length/2
+esel,a,cent,y,width/2-width/2/cut2*(k),width/2
+esel,u,cent,x,xxx,length/2-length/2/cut2*(k)
+esel,u,cent,y,yyy,width/2-width/2/cut2*(k)
+cmsel,u,dont
+
+esel,r,mat,,1!01
+cmsel,r,glass%i%
+
+ekill,all
+alls
+solve
+*enddo
+*Enddo
+
+
+
+
 !----------!
 /post1
-rsys,solu
-rsys,lsys
-plnsol,u,z
+!rsys,solu
+!rsys,lsys
+!esel,s,live
+!plnsol,u,z
 
 
 
-!----
-csys,100	$wpcsys,,100
-nsel,s,loc,z,t1
-esln	$esel,u,mat,,1
+!!----
+!csys,100	$wpcsys,,100
+!nsel,s,loc,z,t1
+!esln	$esel,u,mat,,1
