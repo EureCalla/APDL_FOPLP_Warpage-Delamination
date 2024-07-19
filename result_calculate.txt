@@ -1,0 +1,543 @@
+﻿!熱翹曲分析(無裂紋有PI+mesh1)一2018/2/6
+finish
+/clear
+seltol,1e-8
+/prep7
+
+!■■■■■■■■■■參數設定■■■■■■■■■■
+/input,mpdelamilation_data,txt
+!幾何設定
+
+length=100
+width=100
+t1=0.7				!玻璃厚度
+t2=150e-3			!Die+EMC厚度
+t3=230e-3-t2		!EMC厚度
+t4=13e-3			!PI厚度
+
+nnn=2				!收斂性分析幾倍
+
+da=0.1/nnn			!裂紋尖端最細size
+LDie=4				!Die寬
+spacing=3			!Die邊緣間距
+dienum=16			!Die陣列單邊數量
+diegap=((length-2*spacing-(LDie))/(dienum-1))-LDie			!Die間距
+
+cracklayer=1			!脫層層
+crack_da=da*(5)			!裂紋5格參考間距
+crack_R=1.75-crack_da	!裂紋兩邊寬
+crack_cut=30*nnn		!裂紋切幾段
+
+!■■■■■■■■■■元素設定■■■■■■■■■■
+et,1,solid185
+keyopt,1,2,2
+
+et,5,shell41
+MP,EX,5,73.2e3	
+MP,PRXY,5,0.3
+mp,ctex,5,3.8e-6
+!■■■■■■■■■■座標系■■■■■■■■■■
+local,100,,length/2,width/2,0,				!試片中心點
+
+r1x=length-crack_R
+r1y=width-crack_R
+r2x=length-crack_R+crack_da
+r2y=width-crack_R+crack_da
+local,200,,length/2,width/2,t%cracklayer%	!試片裂紋高中心點
+local,201,1,r1x,r1y,t%cracklayer%,			!圓柱裂紋中心1
+local,202,1,r2x,r2y,t%cracklayer%,			!圓柱裂紋中心2
+local,203,0,r1x,r1y,t%cracklayer%,			!卡式裂紋中心1
+local,204,0,r2x,r2y,t%cracklayer%,			!卡式裂紋中心2
+local,205,0,length-spacing,width-spacing,t%cracklayer%	!卡氏die角角
+
+local,301,0,r1x,r1y,t%cracklayer%,-45			!圓柱裂紋中心1
+local,302,0,r2x,r2y,t%cracklayer%,-45			!圓柱裂紋中心2
+!■■■■■■■■■■幾何建模■■■■■■■■■■
+save
+!----------------------k建立----------------------
+
+
+!k1~k31	  是裂紋尖端
+!k101~k131是裂紋前端
+
+*DO,j,1,2,1
+csys,20%j+2%	$wpcsys,,20%j+2%
+	dc=crack_R-crack_da*(j-1)		!到邊緣多遠
+	dx=dc/crack_cut					!x一份多少
+	dy=dc/crack_cut					!y一份多少
+
+	*do,i,0,crack_cut,1
+		k,(j-1)*100+(i+1),dc-dx*(i),dy*(i)
+	*enddo
+*ENDDO
+
+!kp1_matrix 裂紋尖端所有loc資料
+!kp2_matrix 裂紋前端5所有loc資料
+*do,j,1,2,1
+kp%j%_matrix=
+*dim,kp%j%_matrix,array,crack_cut+1,3
+	csys,200	$wpcsys,,200
+	*do,i,1,crack_cut+1,1
+		ksel,s,,,(j-1)*100+(i)
+		*get,nx,kp,(j-1)*100+(i),loc,x
+		*get,ny,kp,(j-1)*100+(i),loc,y
+	kp%j%_matrix(i,1)=(j-1)*100+(i)		!號碼
+	kp%j%_matrix(i,2)=nx				!loc x	
+	kp%j%_matrix(i,3)=ny				!loc y
+	*enddo
+*enddo
+
+!kp3_matrix 	裂紋後端5所有loc資料
+!da_matrix		裂紋等距
+j=3
+kp%j%_matrix=
+*dim,kp%j%_matrix,array,crack_cut+1,3
+da_matrix=
+*dim,da_matrix,array,crack_cut+1,2
+
+csys,200	$wpcsys,,200
+	*do,i,1,crack_cut+1,1
+	da_x=(kp2_matrix(i,2)-kp1_matrix(i,2))
+	da_y=(kp2_matrix(i,3)-kp1_matrix(i,3))
+	kp%j%_matrix(i,1)=(j-1)*100+(i)					!號碼
+	kp%j%_matrix(i,2)=kp1_matrix(i,2)-da_x			!loc x	
+	kp%j%_matrix(i,3)=kp1_matrix(i,3)-da_y			!loc y
+	
+	da_r=sqrt((da_x)**2+(da_y)**2)
+	da_matrix(i,1)=i					!第幾個裂紋
+	da_matrix(i,2)=da_r/(5)			!元素距離
+	*enddo
+
+!kp4_matrix 	裂紋前端所有loc資料
+j=4
+kp%j%_matrix=
+*dim,kp%j%_matrix,array,crack_cut+1,3
+
+csys,200	$wpcsys,,200
+	*do,i,1,crack_cut+1,1
+	da_x=((kp2_matrix(i,2)-kp1_matrix(i,2)))/(5)
+	da_y=((kp2_matrix(i,3)-kp1_matrix(i,3)))/(5)
+	kp%j%_matrix(i,1)=(j-1)*100+(i)					!號碼
+	kp%j%_matrix(i,2)=kp1_matrix(i,2)+da_x			!loc x	
+	kp%j%_matrix(i,3)=kp1_matrix(i,3)+da_y			!loc y
+	*enddo
+
+!kp5_matrix 	裂紋後端所有loc資料
+j=5
+kp%j%_matrix=
+*dim,kp%j%_matrix,array,crack_cut+1,3
+
+csys,200	$wpcsys,,200
+	*do,i,1,crack_cut+1,1
+	da_x=((kp2_matrix(i,2)-kp1_matrix(i,2)))/(5)
+	da_y=((kp2_matrix(i,3)-kp1_matrix(i,3)))/(5)
+	kp%j%_matrix(i,1)=(j-1)*100+(i)					!號碼
+	kp%j%_matrix(i,2)=kp1_matrix(i,2)-da_x			!loc x	
+	kp%j%_matrix(i,3)=kp1_matrix(i,3)-da_y			!loc y
+	*enddo
+	
+	
+	
+!k201~k231是裂紋後端5
+!k301~k331是裂紋前端
+!k401~k431是裂紋後端
+csys,200	$wpcsys,,200
+*Do,j,3,5,1
+	*do,i,1,crack_cut+1,1
+	k,kp%j%_matrix(i,1),kp%j%_matrix(i,2),kp%j%_matrix(i,3)
+	*enddo
+*ENDDO
+alls
+
+SAVE
+!----------------------A建立----------------------
+
+csys,200	$wpcsys,,200
+	*do,i,1,crack_cut,1
+	A,kp1_matrix(i,1),kp1_matrix(i+1,1),kp4_matrix(i+1,1),kp4_matrix(i,1)
+	*enddo
+
+	*do,i,1,crack_cut,1
+	A,kp4_matrix(i,1),kp4_matrix(i+1,1),kp2_matrix(i+1,1),kp2_matrix(i,1)
+	*enddo
+
+	*do,i,1,crack_cut,1
+	A,kp3_matrix(i,1),kp3_matrix(i+1,1),kp5_matrix(i+1,1),kp5_matrix(i,1)
+	*enddo
+
+	*do,i,1,crack_cut,1
+	A,kp5_matrix(i,1),kp5_matrix(i+1,1),kp1_matrix(i+1,1),kp1_matrix(i,1)
+	*enddo	
+
+!取名字crack_A為裂紋尖端面積
+alls
+cm,crack_A,area
+
+csys,200	$wpcsys,,200
+rectng,0,length/2,0,width/2
+aovlap,all
+alls
+
+/nerr,,99999999
+!■■■■■■■■■■mesh設計■■■■■■■■■■
+!carck的size定義
+asel,s,,,crack_A
+lsla
+csys,301	$wpcsys,,301
+dr=crack_R/sqrt(2)
+drr=crack_da/sqrt(2)/(5)
+lsel,s,loc,y,dr-drr,dr+drr
+lsel,a,loc,y,dr-drr*5
+lsel,a,loc,y,dr+drr*5
+lesize,all,,,1
+
+asel,s,,,crack_A
+lsla
+csys,301	$wpcsys,,301
+lesize,all,,,crack_da/da-1
+
+alls
+SAVE
+
+!處理完裂紋來處理其他mesh
+csys,200	$wpcsys,,200
+wpoffs,length/2,width/2
+wprota,0,0,-90
+
+wpoffs,,,spacing
+asbw,all
+*do,i,1,dienum/2,1
+wpoffs,,,LDie
+asbw,all
+wpoffs,,,diegap
+asbw,all
+*enddo
+
+csys,200	$wpcsys,,200
+wpoffs,length/2,width/2
+wprota,0,90
+
+wpoffs,,,spacing
+asbw,all
+*do,i,1,dienum/2,1
+wpoffs,,,LDie
+asbw,all
+wpoffs,,,diegap
+asbw,all
+*enddo
+
+
+csys,203	$wpcsys,,203
+asel,s,loc,x,-LDie,crack_R+crack_da
+asel,r,loc,y,-LDie,crack_R+crack_da
+asel,u,,,crack_A
+cm,freemesh_A,area	!■■■取名字■■■
+alls
+
+asel,u,,,freemesh_A
+lsla
+lesize,all,0.1*5
+alls
+
+SAVE
+!■■■■■■■■■■mesh■■■■■■■■■■
+!mesh參考板板
+cmsel,s,freemesh_A,area
+csys,301	$wpcsys,,301
+asel,u,loc,y,0,length
+mshape,0
+mshkey,0
+mat,5
+type,5
+esize,0.1*5
+amesh,all
+
+cmsel,s,freemesh_A,area
+csys,301	$wpcsys,,301
+asel,r,loc,y,0,length
+lsla
+lesize,all,da/2
+mshape,0
+mshkey,0
+mat,5
+type,5
+esize,da/2
+amesh,all
+
+csys,203	$wpcsys,,203
+asel,inve
+mshape,0
+mshkey,1
+mat,5
+type,5
+amesh,all
+alls
+						save
+mshape,0
+mshkey,1
+!mesh PI
+mat,18
+type,1
+esize,,2
+VEXT,all,,,0,0,t4		!往z方向擠出
+
+		!■■■取名字■■■
+		csys,205	$wpcsys,,205
+		!Die_A
+		asel,s,loc,z,t4
+		asel,u,loc,x,0,spacing
+		bala=LDie
+		*do,i,1,dienum/2,1
+		asel,u,loc,x,-bala,-bala-diegap
+		bala=bala+(LDie+diegap)
+		*enddo
+		
+		asel,u,loc,Y,0,spacing
+		bala=LDie
+		*do,i,1,dienum/2,1
+		asel,u,loc,Y,-bala,-bala-diegap
+		bala=bala+(LDie+diegap)
+		*enddo
+		
+		cm,die_A,area	
+		
+		!EMC
+		asel,inve
+		asel,r,loc,z,t4
+		cm,emc_A,area	
+		alls
+		!■■■取名字■■■
+!mesh die
+asel,s,,,die_A	$esla
+mat,19
+type,1
+esize,,crack_da/da/2*nnn
+VEXT,all,,,0,0,t2		!往z方向擠出
+
+!mesh emc
+asel,s,,,emc_A	$esla
+mat,20
+type,1
+esize,,crack_da/da/2*nnn
+VEXT,all,,,0,0,t2		!往z方向擠出
+alls
+asel,s,loc,z,t4+t2	$esla
+esize,,(crack_da/da/2-2)*nnn
+VEXT,all,,,0,0,t3		!往z方向擠出
+alls
+
+!上面好像不能一次nummrg太多(?
+esel,u,mat,,5
+nsle
+nsel,s,loc,z,t2+t4
+nummrg,node
+
+esel,s,mat,,19
+nsle
+esln
+esel,u,mat,,5
+nsle
+nummrg,node
+
+csys,200	$wpcsys,,200
+alls
+esel,u,mat,,5
+nsle
+nsel,r,loc,x,0,length/2/2
+nummrg,node
+alls
+
+alls
+esel,u,mat,,5
+nsle
+nsel,r,loc,y,0,length/2/2
+nummrg,node
+alls
+
+alls
+esel,u,mat,,5
+nsle
+nummrg,node
+alls
+
+!mesh Glass
+asel,s,loc,z,0
+local,500,,length/2,width/2,t1/2,,,		!對稱用
+csys,500	$wpcsys,,500
+arsym,z,all
+
+csys,100	$wpcsys,,100
+asel,s,loc,z,0	$esla
+mat,1
+type,1
+esize,,crack_da/da
+VEXT,all,,,0,0,t1		!往z方向擠出
+alls
+
+esel,s,mat,,5
+asle
+aclear,all
+alls
+
+
+save
+!■■■■■■■■■■裂紋黏住■■■■■■■■■■
+csys,301	$wpcsys,,301
+nsel,s,loc,z,0
+nsel,r,loc,y,crack_R/sqrt(2)
+nummrg,node
+cm,cracktip_n,node
+
+nsel,s,loc,z,0
+nsel,r,loc,y,crack_R/sqrt(2),crack_R/sqrt(2)*2
+nsel,u,,,cracktip_n,node
+cm,crack_n,node
+
+nsel,s,,,crack_n
+esel,s,mat,,18
+nsle,r
+cm,crackup_n,node
+
+nsel,s,,,crack_n
+esel,s,mat,,18
+nsle,u
+cm,crackdown_n,node
+
+alls
+
+csys,200	$wpcsys,,200
+nsel,s,loc,z,0
+nsel,u,,,crack_n
+nummrg,node
+
+alls
+nsel,u,,,crack_n
+nummrg,node
+
+
+
+alls		$save
+!■■■■■■■■■■B.C.■■■■■■■■■■
+csys,100	$wpcsys,,100
+nsel,s,loc,x,0	$d,all,ux,0
+nsel,s,loc,y,0	$d,all,uy,0
+nsel,s,loc,z,0	$nsel,r,loc,x,0	$nsel,r,loc,y,0
+d,all,uz,0
+
+alls
+
+
+/solu
+outres,all,last
+nlgeom,on
+autots,on
+antype,0
+kbc,0
+nropt,full	!為了可以ekill而用的指令
+!neqit,30	!幫助收斂的指令
+
+time,0.01
+nsubst,8,5000,1
+alls
+esel,u,mat,,1
+esel,u,mat,,18
+ekill,all
+alls
+tunif,350
+solve
+
+*do,i,1,5,1
+time,(0.1*i)
+nsubst,8,5000,1
+tunif,350-(350-150)/5*i
+solve
+*enddo
+
+time,1
+nsubst,8,5000,1
+esel,s,mat,,19
+esel,a,mat,,20
+ealive,all
+alls
+tunif,150
+solve
+
+*do,i,1,10,1
+time,(1+0.1*i)
+nsubst,8,5000,1
+tunif,150-(150-149.5)/10*i
+solve
+*enddo
+
+
+time,3
+nsubst,8,5000,1
+tunif,148.2
+solve
+
+time,4
+nsubst,8,5000,1
+tunif,147.8
+solve
+
+time,5
+nsubst,8,5000,1
+tunif,140
+solve
+
+time,6
+nsubst,8,5000,1
+tunif,120
+solve
+
+time,7
+nsubst,8,5000,1
+tunif,100
+solve
+
+time,8
+nsubst,8,5000,1
+tunif,80
+solve
+
+time,9
+nsubst,8,5000,1
+tunif,60
+solve
+
+time,9.5
+nsubst,8,5000,1
+tunif,50
+solve
+
+time,10
+nsubst,8,5000,1
+tunif,25
+solve
+
+!考慮自重
+time,11
+esel,s,mat,,1
+bfe,all,forc,1,,,bf1
+esel,s,mat,,19
+bfe,all,forc,1,,,bf19
+esel,s,mat,,20
+bfe,all,forc,1,,,bf20
+esel,s,mat,,18
+bfe,all,forc,1,,,bf18
+alls
+nsubst,8,5000,1
+tunif,25
+solve
+!----------!
+/post1
+rsys,solu
+rsys,lsys
+plnsol,u,z
+
+
+
+!----
+csys,100	$wpcsys,,100
+nsel,s,loc,z,t1
+esln	$esel,u,mat,,1
